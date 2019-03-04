@@ -15,11 +15,19 @@ h1 {
 	color: #ffdf86
 }
 
-td.label {
+.label {
 	text-align: right;
 }
 
-td.value {
+.value {
 	background-color: #000;
+	color: #9a9692;
+}
+
+header .value {
 	color: #00b200;
+}
+
+fieldset table {
+	float: left;
 }

@@ -2,7 +2,7 @@
 <html>
 <head>
 	<meta charset="utf-8" />
-	<title>Open File&hellip;</title>
+	<title>Web Scream V0.01</title>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P" />
 	<link rel="stylesheet" href="/includes/css/styles.css" />
 	<script src="https://code.jquery.com/jquery-3.3.1.js"
@@ -11,10 +11,24 @@
 	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 	<script src="/includes/js/track.js"></script>
 	<script>
+		var currentInstrument = 0;
+
+		function zeroPad(value, n) {
+			return ('0'.repeat(n) + value).slice(n * -1);
+		}
+
 		function display(s3mFile) {
 			var app = new Vue({
 				el: '#view',
-				data: s3mFile
+				data: {
+					s3m: s3mFile,
+					currentInstrument: currentInstrument
+				},
+				methods: {
+					zeroPad: function (value, n) {
+						return ('0'.repeat(n) + value).slice(n * -1);
+					}
+				}
 			});
 			$('#open').hide();
 			$('#view').show();
@@ -31,21 +45,21 @@
 			<table>
 				<tr>
 					<td class="label">Song</td>
-					<td class="value" colspan="3">{{ header.title }}</td>
+					<td class="value" colspan="5">{{ s3m.header.title }}</td>
 					<td class="label">File</td>
-					<td class="value" colspan="5">{{ fileName }}</td>
+					<td class="value" colspan="3">{{ s3m.fileName }}</td>
 				</tr>
 				<tr>
 					<td class="label">Instrument</td>
-					<td class="value" colspan="3">{{ instruments[0].title }}</td>
+					<td class="value" colspan="5">{{ zeroPad(currentInstrument, 2) }}:{{ s3m.instruments[currentInstrument].title }}</td>
 					<td class="label">Chord</td>
-					<td class="value" colspan="5">none</td>
+					<td class="value" colspan="3">none</td>
 				</tr>
 				<tr>
 					<td class="label">Order</td>
-					<td class="value">000/000</td><td class="empty">&nbsp;</td><td class="empty">&nbsp;</td>
+					<td class="value" colspan="5">000/000</td>
 					<td class="label">C.Tempo</td>
-					<td class="value">00</td><td class="empty">&nbsp;</td>
+					<td class="value" colspan="3">00</td>
 				</tr>
 				<tr>
 					<td class="label">Pattern</td>
@@ -61,6 +75,69 @@
 				</tr>
 			</table>
 		</header>
+		<fieldset id="orderListAndVariables">
+			<legend>Order List and Variables (F1)</legend>
+			<table id="orderList">
+				<template v-for="(orderItem, index) in s3m.header.orderList">
+					<tr>
+						<td class="label">{{ zeroPad(index, 3) }}</td>
+						<td class="value" v-if="orderItem === 0xFE">++</td>
+						<td class="value" v-else-if="orderItem === 0xFF">--</td>
+						<td class="value" v-else>{{ zeroPad(orderItem,2) }}</td>
+					</tr>
+				</template>
+			</table>
+			<table id="variables">
+				<thead>
+					<tr>
+						<td class="label" colspan="2">Init</td>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td class="label">Tempo</td>
+						<td class="value">{{ s3m.header.initialTempo.toString(16) }}</td>
+					</tr>
+					<tr>
+						<td class="label">Speed</td>
+						<td class="value">{{ s3m.header.initialSpeed.toString(16) }}</td>
+					</tr>
+					<tr>
+						<td class="label">GlobalVol (00..40)</td>
+						<td class="value">{{ s3m.header.globalVolume.toString(16) }}</td>
+					</tr>
+					<tr>
+						<td class="label">MasterVol (10..7F)</td>
+						<td class="value">{{ s3m.header.masterVolume.toString(16) }}</td>
+					</tr>
+					<tr>
+						<td class="label">Vol0 Optimizations</td>
+						<td class="value"></td>
+					</tr>
+					<tr>
+						<td class="label">Force Amiga Limits</td>
+						<td class="value"></td>
+					</tr>
+					<tr>
+						<td class="label">Fast volumeslides</td>
+						<td class="value"></td>
+					</tr>
+					<tr>
+						<td class="label">MOD edit mode</td>
+						<td class="value"></td>
+					</tr>
+					<tr>
+						<td class="label">UltraClick-removal</td>
+						<td class="value"></td>
+					</tr>
+					<tr>
+						<td class="label">Enable Stereo</td>
+						<td class="value" v-if="s3m.header.stereo">on</td>
+						<td class="value" v-else>--</td>
+					</tr>
+				</tbody>
+			</table>
+		</fieldset>
 	</form>
 </body>
 </html>
