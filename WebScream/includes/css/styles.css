@@ -1,0 +1,25 @@
+﻿body {
+	background-color: #a69255;
+	font-family: 'Press Start 2P', cursive;
+	font-size: 12pt;
+	color: #514528;
+}
+
+#view {
+	display: none;
+}
+
+h1 {
+	font-size: 12pt;
+	font-weight: normal;
+	color: #ffdf86
+}
+
+td.label {
+	text-align: right;
+}
+
+td.value {
+	background-color: #000;
+	color: #00b200;
+}

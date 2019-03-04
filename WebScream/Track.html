@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Open File&hellip;</title>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P" />
+	<link rel="stylesheet" href="/includes/css/styles.css" />
+	<script src="https://code.jquery.com/jquery-3.3.1.js"
+			integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+			crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+	<script src="/includes/js/track.js"></script>
+	<script>
+		function display(s3mFile) {
+			var app = new Vue({
+				el: '#view',
+				data: s3mFile
+			});
+			$('#open').hide();
+			$('#view').show();
+		}
+	</script>
+</head>
+<body>
+	<form id="open">
+		<input id="s3mFile" type="file" accept=".s3m, audio/s3m" /><button type="button" onclick="S3M.open(document.getElementById('s3mFile'), display)">Open</button>
+	</form>
+	<form id="view">
+		<header>
+			<h1>Web Scream V0.01</h1>
+			<table>
+				<tr>
+					<td class="label">Song</td>
+					<td class="value" colspan="3">{{ header.title }}</td>
+					<td class="label">File</td>
+					<td class="value" colspan="5">{{ fileName }}</td>
+				</tr>
+				<tr>
+					<td class="label">Instrument</td>
+					<td class="value" colspan="3">{{ instruments[0].title }}</td>
+					<td class="label">Chord</td>
+					<td class="value" colspan="5">none</td>
+				</tr>
+				<tr>
+					<td class="label">Order</td>
+					<td class="value">000/000</td><td class="empty">&nbsp;</td><td class="empty">&nbsp;</td>
+					<td class="label">C.Tempo</td>
+					<td class="value">00</td><td class="empty">&nbsp;</td>
+				</tr>
+				<tr>
+					<td class="label">Pattern</td>
+					<td class="value">00</td>
+					<td class="label">Row</td>
+					<td class="value">00</td>
+					<td class="label">Channel</td>
+					<td class="value">00</td>
+					<td class="label">C.Speed</td>
+					<td class="value">00</td>
+					<td class="label">Baseoctave</td>
+					<td class="value">00</td>
+				</tr>
+			</table>
+		</header>
+	</form>
+</body>
+</html>
