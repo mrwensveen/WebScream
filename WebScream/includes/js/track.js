@@ -1,7 +1,17 @@
 ﻿var ascii = new TextDecoder('ascii');
 
 var S3M = (function () {
-	var FLAGS = Object.freeze({ "ST2_vibrato": 1, "ST2_tempo": 2, "Amiga_slides": 4, "Zero_vol_optimisations": 8, "Amiga_limits": 16, "Enable_SB_filter_sfx": 32, "ST300_volume_slides": 64, "PtrSpecial_valid": 128 });
+	var FLAGS = Object.freeze({
+		"ST2_vibrato": 1,
+		"ST2_tempo": 2,
+		"Amiga_slides": 4,
+		"Vol0_optimizations": 8,
+		"Amiga_limits": 16,
+		"Enable_SB_filter_sfx": 32,
+		"ST300_volume_slides": 64,
+		"PtrSpecial_valid": 128,
+		"MOD_edit_mode": 256
+	});
 
 	var _readHeader = function (s3mFile, fileData) {
 		let fileDataView = new DataView(fileData);
@@ -27,9 +37,9 @@ var S3M = (function () {
 			masterVolume: fileDataView.getUint8(0x33) & 0x7F, // 0111 1111
 			stereo: (fileDataView.getUint8(0x33) & 0x80) > 0, // 1000 0000
 			ultraClickRemoval: fileDataView.getUint8(0x34),
-			defaultPan: fileDataView.getUint8(0x35),
+			defaultPan: fileDataView.getUint8(0x35) !== 0xFC, // false: read channel panning values
 			reservedData: new Uint8Array(fileData, 0x36, 8),
-			ptrSpecial: fileDataView.getUint16(0x3E, true), // parapointer
+			ptrSpecial: fileDataView.getUint16(0x3E, true), // parapointer to 'special data'
 
 			channelSettings: new Uint8Array(fileData, 0x40, 32) // 0x40 and 0x50
 		};
@@ -40,6 +50,54 @@ var S3M = (function () {
 		});
 
 		return header;
+	};
+
+	var _readChannels = function (s3mFile, fileData) {
+		let panningData = [];
+		if (!s3mFile.header.defaultPan) {
+			panningData = new Uint8Array(fileData, 0x60 + s3mFile.header.orderCount + s3mFile.header.instrumentCount * 2 + s3mFile.header.patternCount * 2, 32);
+		}
+		let channels = [];
+		for (let c = 0; c < 32; c++) {
+			let setting = s3mFile.header.channelSettings[c];
+
+			let channel;
+			if (setting === 0xFF) {
+				channel = {
+					unused: true,
+					disabled: true
+				};
+			} else {
+				channel = {
+					unused: false,
+					disabled: (setting & 0x80) > 0,
+					outputChannel: setting & 0x7F // 0-7 Left, 8-15 Right, 16-24 Adlib melody, 25-29 Adlib drum, 30-127 Invalid
+				};
+			}
+
+			channel.defaultPanning = s3mFile.header.defaultPan || (panningData[c] & 0x20) === 0; // Default panning according to header or panningData
+
+			if (s3mFile.header.stereo) {
+				if (channel.defaultPanning) {
+					if (channel.outputChannel < 8) {
+						channel.panning = 0x03; // Left
+					} else if (channel.outputChannel < 16) {
+						channel.panning = 0x0C; // Right
+					} else {
+						channel.panning = 0x07; // Adlib melody and drums default center.
+					}
+				} else {
+					// Read panning from panningData
+					channel.panning = panningData[c] & 0x0F;
+				}
+			} else {
+				channel.panning = 0x07; // Mono
+			}
+
+			channels.push(channel);
+		}
+
+		return channels;
 	};
 
 	var _readInstruments = function (s3mFile, fileData) {
@@ -82,7 +140,7 @@ var S3M = (function () {
 					pcmData: fileData.slice(instrument.pcmOffset * 16, instrument.pcmOffset * 16 + instrument.length)
 				});
 			} else if (instrument.type === 2) {
-				console.log("FM instruments not supported.");
+				console.log("Adlib/OPAL2/FM instruments not supported.");
 			}
 
 			instruments.push(instrument);
@@ -120,6 +178,7 @@ var S3M = (function () {
 					};
 
 					Object.assign(s3mFile, { header: _readHeader(s3mFile, fileData) });
+					Object.assign(s3mFile, { channels: _readChannels(s3mFile, fileData) });
 					Object.assign(s3mFile, { instruments: _readInstruments(s3mFile, fileData) });
 
 					// TODO: Patterns

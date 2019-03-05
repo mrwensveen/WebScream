@@ -22,11 +22,40 @@
 				el: '#view',
 				data: {
 					s3m: s3mFile,
+					FLAGS: S3M.FLAGS,
 					currentInstrument: currentInstrument
 				},
 				methods: {
+					hex: function (value) {
+						return Number.isInteger(value) ? value.toString(16).toUpperCase() : '0';
+					},
 					zeroPad: function (value, n) {
 						return ('0'.repeat(n) + value).slice(n * -1);
+					},
+					displayChannel: function (channel) {
+						// TODO: enabled/unused
+
+						let display;
+						if (channel.unused) {
+							display = '(--)';
+						} else {
+							display = channel.outputChannel < 8 ? 'L' + (channel.outputChannel + 1) :
+								channel.outputChannel < 16 ? 'R' + (channel.outputChannel - 7) :
+									channel.outputChannel < 30 ? 'A' + (channel.outputChannel - 15) : '??';
+
+							if (channel.disabled) {
+								display = '(' + display + ')';
+							} else {
+								display = '\xa0' + display + ' ';
+							}
+						}
+
+						display += (channel.defaultPanning ? '.' : this.hex(channel.panning));
+
+						return display;
+					},
+					flag: function (value) {
+						return value ? 'on' : '--';
 					}
 				}
 			});
@@ -87,6 +116,17 @@
 					</tr>
 				</template>
 			</table>
+			<table id="channels">
+				<template v-for="n in 16">
+					<tr>
+						<td class="label">{{ zeroPad(n, 2) }}</td>
+						<td class="value">{{ displayChannel(s3m.channels[n - 1]) }}</td>
+
+						<td class="label">{{ zeroPad(n + 16, 2) }}</td>
+						<td class="value">{{ displayChannel(s3m.channels[n + 15]) }}</td>
+					</tr>
+				</template>
+			</table>
 			<table id="variables">
 				<thead>
 					<tr>
@@ -96,47 +136,52 @@
 				<tbody>
 					<tr>
 						<td class="label">Tempo</td>
-						<td class="value">{{ s3m.header.initialTempo.toString(16) }}</td>
+						<td class="value">{{ zeroPad(hex(s3m.header.initialTempo), 2) }}</td>
 					</tr>
 					<tr>
 						<td class="label">Speed</td>
-						<td class="value">{{ s3m.header.initialSpeed.toString(16) }}</td>
+						<td class="value">{{ zeroPad(hex(s3m.header.initialSpeed), 2) }}</td>
 					</tr>
 					<tr>
 						<td class="label">GlobalVol (00..40)</td>
-						<td class="value">{{ s3m.header.globalVolume.toString(16) }}</td>
+						<td class="value">{{ zeroPad(hex(s3m.header.globalVolume), 2) }}</td>
 					</tr>
 					<tr>
 						<td class="label">MasterVol (10..7F)</td>
-						<td class="value">{{ s3m.header.masterVolume.toString(16) }}</td>
+						<td class="value">{{ zeroPad(hex(s3m.header.masterVolume), 2) }}</td>
 					</tr>
 					<tr>
 						<td class="label">Vol0 Optimizations</td>
-						<td class="value"></td>
+						<td class="value">{{ flag(s3m.header.flags & FLAGS.Vol0_optimizations) }}</td>
 					</tr>
 					<tr>
 						<td class="label">Force Amiga Limits</td>
-						<td class="value"></td>
+						<td class="value">{{ flag(s3m.header.flags & FLAGS.Amiga_limits) }}</td>
 					</tr>
 					<tr>
 						<td class="label">Fast volumeslides</td>
-						<td class="value"></td>
+						<td class="value">{{ flag(s3m.header.flags & FLAGS.ST300_volume_slides) }}</td>
 					</tr>
 					<tr>
 						<td class="label">MOD edit mode</td>
-						<td class="value"></td>
+						<td class="value">{{ flag(s3m.header.flags & FLAGS.MOD_edit_mode) }}</td>
 					</tr>
 					<tr>
 						<td class="label">UltraClick-removal</td>
-						<td class="value"></td>
+						<td class="value">{{ s3m.header.ultraClickRemoval / 2 }}</td>
 					</tr>
 					<tr>
 						<td class="label">Enable Stereo</td>
-						<td class="value" v-if="s3m.header.stereo">on</td>
-						<td class="value" v-else>--</td>
+						<td class="value">{{ flag(s3m.header.stereo) }}</td>
 					</tr>
 				</tbody>
 			</table>
+		</fieldset>
+		<fieldset id="patterns">
+			<legend>Pattern Editor (F2)</legend>
+		</fieldset>
+		<fieldset id="instruments">
+			<legend>Instrument List (F3)</legend>
 		</fieldset>
 	</form>
 </body>
