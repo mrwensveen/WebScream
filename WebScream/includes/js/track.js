@@ -13,6 +13,8 @@ var S3M = (function () {
 		"MOD_edit_mode": 256
 	});
 
+	var NOTES = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-'];
+
 	var _readHeader = function (s3mFile, fileData) {
 		let fileDataView = new DataView(fileData);
 
@@ -104,7 +106,6 @@ var S3M = (function () {
 		let ptrInstruments = new DataView(fileData, 0x60 + s3mFile.header.orderCount, s3mFile.header.instrumentCount * 2); // parapointers
 
 		let instruments = [];
-		
 		for (let i = 0; i < s3mFile.header.instrumentCount; i++) {
 			let offset = ptrInstruments.getUint16(i * 2, true) * 16;
 			let instrumentHeaderView = new DataView(fileData, offset, 0x50);
@@ -149,6 +150,50 @@ var S3M = (function () {
 		return instruments;
 	};
 
+	var _readPatterns = function (s3mFile, fileData) {
+		let ptrPatterns = new DataView(fileData, 0x60 + s3mFile.header.orderCount + s3mFile.header.instrumentCount * 2, s3mFile.header.patternCount * 2); // parapointers
+
+		let patterns = [];
+		for (let p = 0; p < s3mFile.header.patternCount; p++) {
+			let offset = ptrPatterns.getUint16(p * 2, true) * 16;
+
+			let packedLength = new DataView(fileData, offset, 2).getUint16(0, true);
+			let packedData = new DataView(fileData, offset + 2, packedLength - 2);
+
+			let rows = Array(64);
+			let cursor = 0;
+			for (let r = 0; r < 64; r++) {
+				let channels = Array(32);
+
+				let what = packedData.getUint8(cursor++);
+				while (what !== 0) { // End of row data
+					let channel = what & 0x1F;
+					let value = {};
+					if (what & 0x20) {
+						value.note = packedData.getUint8(cursor++);
+						value.instrument = packedData.getUint8(cursor++);
+					}
+					if (what & 0x40) {
+						value.volume = packedData.getUint8(cursor++);
+					}
+					if (what & 0x80) {
+						value.command = packedData.getUint8(cursor++);
+						value.info = packedData.getUint8(cursor++);
+					}
+
+					channels[channel] = value;
+					what = packedData.getUint8(cursor++); // Next value
+				}
+
+				rows[r] = channels;
+			}
+
+			patterns[p] = rows;
+		}
+
+		return patterns;
+	};
+
 	var open = function (input, callback) {
 		// Check for the various File API support.
 		if (window.File && window.FileReader && window.FileList && window.Blob) {
@@ -180,11 +225,7 @@ var S3M = (function () {
 					Object.assign(s3mFile, { header: _readHeader(s3mFile, fileData) });
 					Object.assign(s3mFile, { channels: _readChannels(s3mFile, fileData) });
 					Object.assign(s3mFile, { instruments: _readInstruments(s3mFile, fileData) });
-
-					// TODO: Patterns
-					//ptrPatterns: new Uint16Array(fileData, 96 + s3mFile.header.orderCount + s3mFile.header.instrumentCount * 2, s3mFile.header.patternCount)
-
-					console.log(s3mFile);
+					Object.assign(s3mFile, { patterns: _readPatterns(s3mFile, fileData) });
 
 					if (typeof callback !== 'undefined') {
 						callback(s3mFile);
@@ -192,7 +233,6 @@ var S3M = (function () {
 				};
 
 				reader.readAsArrayBuffer(file);
-
 			}
 		} else {
 			alert('The File APIs are not fully supported in this browser.');
@@ -201,6 +241,7 @@ var S3M = (function () {
 
 	return {
 		FLAGS: FLAGS,
+		NOTES: NOTES,
 		open: open
 	};
 })();

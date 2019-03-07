@@ -260,3 +260,5 @@ paket-files/
 __pycache__/
 *.pyc
 /Solution Items/ST321.xcf
+/WebScream/includes/styles/styles.min.css
+/WebScream/includes/styles/styles.css

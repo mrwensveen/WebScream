@@ -1,0 +1,64 @@
+﻿body {
+	background-color: #a69255;
+	/*font-family: 'Press Start 2P', cursive;*/
+	font-family: monospace;
+	font-size: 12pt;
+	color: #514528;
+}
+
+#view {
+	display: none;
+}
+
+h1 {
+	font-size: 12pt;
+	font-weight: normal;
+	color: #ffdf86
+}
+
+fieldset {
+	width: 800px;
+	overflow-x: auto;
+}
+
+.label {
+	text-align: right;
+}
+
+.value {
+	background-color: #000;
+	color: #9a9692;
+}
+
+header .value {
+	color: #00b200;
+}
+
+#orderListAndVariables {
+	table {
+		float: left;
+	}
+}
+
+#patterns {
+	table {
+		table-layout: fixed;
+		width: 100%;
+		border: none;
+		border-collapse: collapse;
+	}
+
+	th {
+		&:first-child {
+			width: 25px;
+		}
+		width: 120px;
+	}
+
+	td {
+		&:first-child {
+			border-left: none;
+		}
+		border-left: 3px solid #a69255;
+	}
+}
