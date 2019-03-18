@@ -1,7 +1,9 @@
-﻿var ascii = new TextDecoder('ascii');
+﻿/* eslint no-extra-parens: ["error", "all", { "nestedBinaryExpressions": false }] */
+
+var ascii = new TextDecoder('ascii');
 
 var S3M = (function () {
-	var FLAGS = Object.freeze({
+	const FLAGS = Object.freeze({
 		"ST2_vibrato": 1,
 		"ST2_tempo": 2,
 		"Amiga_slides": 4,
@@ -13,9 +15,14 @@ var S3M = (function () {
 		"MOD_edit_mode": 256
 	});
 
-	var NOTES = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-'];
+	const NOTES = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-'];
+	const PERIODS = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907];
+	const C2SPD = 8363;
+	const BASE_HZ = C2SPD * PERIODS[0];
 
-	var _readHeader = function (s3mFile, fileData) {
+	const _audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+	const _readHeader = function (s3mFile, fileData) {
 		let fileDataView = new DataView(fileData);
 
 		let header = {
@@ -54,7 +61,7 @@ var S3M = (function () {
 		return header;
 	};
 
-	var _readChannels = function (s3mFile, fileData) {
+	const _readChannels = function (s3mFile, fileData) {
 		let panningData = [];
 		if (!s3mFile.header.defaultPan) {
 			panningData = new Uint8Array(fileData, 0x60 + s3mFile.header.orderCount + s3mFile.header.instrumentCount * 2 + s3mFile.header.patternCount * 2, 32);
@@ -102,7 +109,7 @@ var S3M = (function () {
 		return channels;
 	};
 
-	var _readInstruments = function (s3mFile, fileData) {
+	const _readInstruments = function (s3mFile, fileData) {
 		let ptrInstruments = new DataView(fileData, 0x60 + s3mFile.header.orderCount, s3mFile.header.instrumentCount * 2); // parapointers
 
 		let instruments = [];
@@ -112,7 +119,15 @@ var S3M = (function () {
 
 			let instrument = {
 				type: instrumentHeaderView.getUint8(0x00),
-				filename: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 1, 12)).split("\0")[0]
+				filename: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 1, 12)).split("\0")[0],
+
+				// Instrument-type specific data from 0x10-0x30
+				volume: instrumentHeaderView.getUint8(0x1C), // Always at 0x1C for every type
+
+				title: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x30, 28)).split("\0")[0],
+				sig: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x4C, 4)), // 'SCRS, SCRI or 4 NUL bytes'
+				c2spd: instrumentHeaderView.getUint32(0x20, true),
+				internal: new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x24, 12)
 			};
 
 			if (instrument.type === 0) {
@@ -125,23 +140,40 @@ var S3M = (function () {
 					length: instrumentHeaderView.getUint32(0x10, true),
 					loopStart: instrumentHeaderView.getUint32(0x14, true),
 					loopEnd: instrumentHeaderView.getUint32(0x18, true),
-					volume: instrumentHeaderView.getUint8(0x1C),
+
 					reserved: instrumentHeaderView.getUint8(0x1D),
 					pack: instrumentHeaderView.getUint8(0x1E),
-					flags: instrumentHeaderView.getUint8(0x1F),
-
-					c2spd: instrumentHeaderView.getUint32(0x20),
-					internal: new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x24, 12),
-
-					title: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x30, 28)).split("\0")[0],
-					sig: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x4C, 4)) // 'SCRS'
+					flags: instrumentHeaderView.getUint8(0x1F)
 				});
 
 				Object.assign(instrument, {
-					pcmData: fileData.slice(instrument.pcmOffset * 16, instrument.pcmOffset * 16 + instrument.length)
+					pcmData: new Uint8Array(fileData, instrument.pcmOffset * 16, instrument.length),
+					play: function (note = 0, octave = 0) {
+						let period = (PERIODS[note] >> octave) * C2SPD / instrument.c2spd; //C2SPD * 16 * (PERIODS[note] >> octave) / instrument.c2spd;
+						let herz = BASE_HZ / period;
+
+						let buffer = _audioContext.createBuffer(1, instrument.length, herz);
+
+						var nowBuffering = buffer.getChannelData(0);
+						for (var i = 0; i < this.length; i++) {
+							// audio needs to be in [-1.0; 1.0]
+							nowBuffering[i] = this.pcmData[i] * 2 / 255 - 1;
+						}
+
+						// Get an AudioBufferSourceNode.
+						// This is the AudioNode to use when we want to play an AudioBuffer
+						var source = _audioContext.createBufferSource();
+						// set the buffer in the AudioBufferSourceNode
+						source.buffer = buffer;
+						// connect the AudioBufferSourceNode to the
+						// destination so we can hear the sound
+						source.connect(_audioContext.destination);
+						// start the source playing
+						source.start();
+					}
 				});
-			} else if (instrument.type === 2) {
-				console.log("Adlib/OPAL2/FM instruments not supported.");
+			} else if (instrument.type >= 2) {
+				console.log("Adlib/OPAL2/FM instruments currently not supported.");
 			}
 
 			instruments.push(instrument);
@@ -150,7 +182,7 @@ var S3M = (function () {
 		return instruments;
 	};
 
-	var _readPatterns = function (s3mFile, fileData) {
+	const _readPatterns = function (s3mFile, fileData) {
 		let ptrPatterns = new DataView(fileData, 0x60 + s3mFile.header.orderCount + s3mFile.header.instrumentCount * 2, s3mFile.header.patternCount * 2); // parapointers
 
 		let patterns = [];
@@ -169,20 +201,20 @@ var S3M = (function () {
 				while (what !== 0) { // End of row data
 					let channel = what & 0x1F;
 					let value = {};
-					if (what & 0x20) {
+					if ((what & 0x20) && packedData.byteLength - cursor >= 2) {
 						value.note = packedData.getUint8(cursor++);
 						value.instrument = packedData.getUint8(cursor++);
 					}
-					if (what & 0x40) {
+					if ((what & 0x40) && packedData.byteLength - cursor >= 1) {
 						value.volume = packedData.getUint8(cursor++);
 					}
-					if (what & 0x80) {
+					if ((what & 0x80) && packedData.byteLength - cursor >= 2) {
 						value.command = packedData.getUint8(cursor++);
 						value.info = packedData.getUint8(cursor++);
 					}
 
 					channels[channel] = value;
-					what = packedData.getUint8(cursor++); // Next value
+					what = packedData.byteLength - cursor >= 1 ? packedData.getUint8(cursor++) : 0; // Next value
 				}
 
 				rows[r] = channels;
@@ -194,17 +226,17 @@ var S3M = (function () {
 		return patterns;
 	};
 
-	var open = function (input, callback) {
+	const open = function (input, callback) {
 		// Check for the various File API support.
 		if (window.File && window.FileReader && window.FileList && window.Blob) {
 			if (input.files.length > 0) {
-				var file = input.files[0];
+				const file = input.files[0];
 				console.log(file.name);
 
-				var reader = new FileReader();
+				const reader = new FileReader();
 				reader.onload = function () {
 					// The S3M file data
-					var fileData = reader.result;
+					const fileData = reader.result;
 					console.log(fileData.byteLength);
 
 					// References:
@@ -213,12 +245,12 @@ var S3M = (function () {
 					// - https://github.com/lclevy/unmo3/blob/master/spec/s3m.txt
 
 					// Sanity check (sort of)
-					var sanityBytes = new Uint8Array(fileData, 28, 2);
+					const sanityBytes = new Uint8Array(fileData, 28, 2);
 					if (sanityBytes[0] !== 0x1A && sanityBytes[1] !== 0x10) {
 						alert('Not a valid S3M file!');
 					}
 
-					var s3mFile = {
+					const s3mFile = {
 						fileName: file.name
 					};
 

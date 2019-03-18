@@ -1,19 +1,38 @@
-﻿body {
-	background-color: #a69255;
+﻿$c-background: #a69255;
+$c-label: #514528;
+$c-value: #9a9692;
+$c-highlight: #ffdf86;
+$c-highlight-value: #00b200;
+
+body {
+	background-color: $c-background;
 	/*font-family: 'Press Start 2P', cursive;*/
 	font-family: monospace;
 	font-size: 12pt;
-	color: #514528;
 }
 
 #view {
 	display: none;
 }
 
+header .value {
+	color: $c-highlight-value;
+}
+
+.label {
+	text-align: right;
+	color: $c-label;
+}
+
+.value {
+	background-color: #000;
+	color: $c-value;
+}
+
 h1 {
 	font-size: 12pt;
 	font-weight: normal;
-	color: #ffdf86
+	color: $c-highlight;
 }
 
 fieldset {
@@ -21,17 +40,23 @@ fieldset {
 	overflow-x: auto;
 }
 
-.label {
-	text-align: right;
+table {
+	border: none;
+	border-collapse: collapse;
+
+	td {
+		&:first-child {
+			border-left: none;
+		}
+
+		border-left: 3px solid $c-background;
+	}
 }
 
-.value {
-	background-color: #000;
-	color: #9a9692;
-}
-
-header .value {
-	color: #00b200;
+button {
+	&:focus {
+		background-color: $c-highlight;
+	}
 }
 
 #orderListAndVariables {
@@ -44,21 +69,12 @@ header .value {
 	table {
 		table-layout: fixed;
 		width: 100%;
-		border: none;
-		border-collapse: collapse;
 	}
 
 	th {
 		&:first-child {
 			width: 25px;
 		}
-		width: 120px;
-	}
-
-	td {
-		&:first-child {
-			border-left: none;
-		}
-		border-left: 3px solid #a69255;
+		width: 130px;
 	}
 }
