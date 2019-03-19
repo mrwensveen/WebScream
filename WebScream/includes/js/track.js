@@ -1,8 +1,6 @@
 ﻿/* eslint no-extra-parens: ["error", "all", { "nestedBinaryExpressions": false }] */
 
-var ascii = new TextDecoder('ascii');
-
-var S3M = (function () {
+define(['Tone'], function (Tone) {
 	const FLAGS = Object.freeze({
 		"ST2_vibrato": 1,
 		"ST2_tempo": 2,
@@ -16,9 +14,11 @@ var S3M = (function () {
 	});
 
 	const NOTES = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-'];
-	const PERIODS = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907];
-	const C2SPD = 8363;
-	const BASE_HZ = C2SPD * PERIODS[0];
+
+	const _ascii = new TextDecoder('ascii');
+	const _periods = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907];
+	const _c2spd = 8363;
+	const _base_hz = _c2spd * _periods[0];
 
 	const _audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -27,7 +27,7 @@ var S3M = (function () {
 
 		let header = {
 			// static header properties
-			title: ascii.decode(new Uint8Array(fileData, 0x00, 28)).split("\0")[0],
+			title: _ascii.decode(new Uint8Array(fileData, 0x00, 28)).split("\0")[0],
 			sig1: fileDataView.getUint8(0x1C),
 			type: fileDataView.getUint8(0x1D),
 			reserved: fileDataView.getUint16(0x1E, true), // 00 00
@@ -38,7 +38,7 @@ var S3M = (function () {
 			flags: fileDataView.getUint16(0x26, true),
 			trackerVersion: fileDataView.getUint16(0x28, true),
 			sampleType: fileDataView.getUint16(0x2A, true),
-			sig2: ascii.decode(new Uint8Array(fileData, 0x2C, 4)), // 'SCRM'
+			sig2: _ascii.decode(new Uint8Array(fileData, 0x2C, 4)), // 'SCRM'
 
 			globalVolume: fileDataView.getUint8(0x30),
 			initialSpeed: fileDataView.getUint8(0x31),
@@ -119,13 +119,13 @@ var S3M = (function () {
 
 			let instrument = {
 				type: instrumentHeaderView.getUint8(0x00),
-				filename: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 1, 12)).split("\0")[0],
+				filename: _ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 1, 12)).split("\0")[0],
 
 				// Instrument-type specific data from 0x10-0x30
 				volume: instrumentHeaderView.getUint8(0x1C), // Always at 0x1C for every type
 
-				title: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x30, 28)).split("\0")[0],
-				sig: ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x4C, 4)), // 'SCRS, SCRI or 4 NUL bytes'
+				title: _ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x30, 28)).split("\0")[0],
+				sig: _ascii.decode(new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x4C, 4)), // 'SCRS, SCRI or 4 NUL bytes'
 				c2spd: instrumentHeaderView.getUint32(0x20, true),
 				internal: new Uint8Array(instrumentHeaderView.buffer, instrumentHeaderView.byteOffset + 0x24, 12)
 			};
@@ -149,8 +149,8 @@ var S3M = (function () {
 				Object.assign(instrument, {
 					pcmData: new Uint8Array(fileData, instrument.pcmOffset * 16, instrument.length),
 					play: function (note = 0, octave = 0) {
-						let period = (PERIODS[note] >> octave) * C2SPD / instrument.c2spd; //C2SPD * 16 * (PERIODS[note] >> octave) / instrument.c2spd;
-						let herz = BASE_HZ / period;
+						let period = (_periods[note] >> octave) * _c2spd / instrument.c2spd; //C2SPD * 16 * (PERIODS[note] >> octave) / instrument.c2spd;
+						let herz = _base_hz / period;
 
 						let buffer = _audioContext.createBuffer(1, instrument.length, herz);
 
@@ -226,18 +226,18 @@ var S3M = (function () {
 		return patterns;
 	};
 
-	const open = function (input, callback) {
+	const Open = function (input, callback) {
 		// Check for the various File API support.
 		if (window.File && window.FileReader && window.FileList && window.Blob) {
 			if (input.files.length > 0) {
 				const file = input.files[0];
-				console.log(file.name);
+				//console.log(file.name);
 
 				const reader = new FileReader();
 				reader.onload = function () {
 					// The S3M file data
 					const fileData = reader.result;
-					console.log(fileData.byteLength);
+					//console.log(fileData.byteLength);
 
 					// References:
 					// - http://www.shikadi.net/moddingwiki/S3M_Format
@@ -274,6 +274,6 @@ var S3M = (function () {
 	return {
 		FLAGS: FLAGS,
 		NOTES: NOTES,
-		open: open
+		Open: Open
 	};
-})();
+});

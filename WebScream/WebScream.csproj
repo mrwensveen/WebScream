@@ -67,6 +67,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="includes\js\app.js" />
+    <Content Include="includes\js\modules\jquery.no-conflict.js" />
     <Content Include="includes\js\track.js" />
     <Content Include="includes\styles\styles.css">
       <DependentUpon>styles.scss</DependentUpon>
@@ -85,6 +87,15 @@
     <None Include="compilerconfig.json.defaults">
       <DependentUpon>compilerconfig.json</DependentUpon>
     </None>
+    <Content Include="examples\amigaripp.s3m" />
+    <Content Include="examples\aryx.s3m" />
+    <Content Include="examples\ASIKWUSpulse - Shrubbing.s3m" />
+    <Content Include="examples\cosmo.s3m" />
+    <Content Include="examples\disco_feva_baby.s3m" />
+    <Content Include="examples\dusk.s3m" />
+    <Content Include="examples\epic_pinball_-_song6_-_jungle_pinball.s3m" />
+    <Content Include="examples\takemeto.s3m" />
+    <Content Include="examples\WFDEMO.S3M" />
     <None Include="includes\styles\styles.scss" />
     <None Include="packages.config" />
     <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
